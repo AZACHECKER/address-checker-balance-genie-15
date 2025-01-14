@@ -71,10 +71,6 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
     return parseFloat(balance.amount) > 0 || (balance.tokens && balance.tokens.some(token => parseFloat(token.balance) > 0));
   };
 
-  const getNonZeroBalances = (result: Result) => {
-    return result.balances.filter(hasNonZeroBalance);
-  };
-
   return (
     <>
       <div className="win98-container overflow-x-auto">
@@ -119,17 +115,17 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">
-                    {result.balances.map((balance, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`text-xs md:text-sm win98-inset p-2 cursor-pointer hover:bg-gray-100 ${
-                          parseFloat(balance.amount) > 0 ? 'text-green-600' : 'text-gray-500'
-                        }`}
-                        onClick={() => setSelectedResult(result)}
-                      >
-                        <span className="font-medium">{balance.networkName}:</span>{' '}
-                        <span className="font-mono">{balance.amount}</span>
-                      </div>
+                    {result.balances
+                      .filter(hasNonZeroBalance)
+                      .map((balance, idx) => (
+                        <div 
+                          key={idx} 
+                          className="text-xs md:text-sm win98-inset p-2 cursor-pointer hover:bg-gray-100 text-green-600"
+                          onClick={() => setSelectedResult(result)}
+                        >
+                          <span className="font-medium">{balance.networkName}:</span>{' '}
+                          <span className="font-mono">{balance.amount}</span>
+                        </div>
                     ))}
                     {result.status === 'checking' && (
                       <div className="text-xs text-gray-600 animate-pulse">
@@ -149,7 +145,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
           <DialogHeader>
             <DialogTitle>Детальная информация</DialogTitle>
             <DialogDescription>
-              Информация о балансах на сетях с ненулевым балансом
+              Информация о балансах на всех проверенных сетях
             </DialogDescription>
           </DialogHeader>
           
@@ -185,13 +181,15 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">Балансы и токены</div>
                 <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto">
-                  {getNonZeroBalances(selectedResult).map((balance, idx) => (
+                  {selectedResult.balances.map((balance, idx) => (
                     <Accordion type="single" collapsible key={idx}>
                       <AccordionItem value={`network-${idx}`} className="win98-container p-3">
                         <AccordionTrigger className="hover:no-underline">
                           <div className="flex flex-col items-start">
                             <div className="font-medium">{balance.networkName}</div>
-                            <div className="font-mono text-sm text-green-600">
+                            <div className={`font-mono text-sm ${
+                              parseFloat(balance.amount) > 0 ? 'text-green-600' : 'text-gray-500'
+                            }`}>
                               {balance.amount}
                             </div>
                           </div>
@@ -199,18 +197,18 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                         <AccordionContent>
                           {balance.tokens && balance.tokens.length > 0 ? (
                             <div className="space-y-2 mt-2">
-                              {balance.tokens
-                                .filter(token => parseFloat(token.balance) > 0)
-                                .map((token, tokenIdx) => (
-                                  <div key={tokenIdx} className="win98-inset p-2">
-                                    <div className="font-medium">{token.symbol}</div>
-                                    <div className="font-mono text-sm">
-                                      {formatBalance(token.balance, token.decimals)}
-                                    </div>
-                                    <div className="text-xs text-gray-600 break-all">
-                                      {token.address}
-                                    </div>
+                              {balance.tokens.map((token, tokenIdx) => (
+                                <div key={tokenIdx} className="win98-inset p-2">
+                                  <div className="font-medium">{token.symbol}</div>
+                                  <div className={`font-mono text-sm ${
+                                    parseFloat(token.balance) > 0 ? 'text-green-600' : 'text-gray-500'
+                                  }`}>
+                                    {formatBalance(token.balance, token.decimals)}
                                   </div>
+                                  <div className="text-xs text-gray-600 break-all">
+                                    {token.address}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           ) : (
@@ -222,11 +220,6 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                       </AccordionItem>
                     </Accordion>
                   ))}
-                  {getNonZeroBalances(selectedResult).length === 0 && (
-                    <div className="text-sm text-gray-600">
-                      Нет балансов для отображения
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
