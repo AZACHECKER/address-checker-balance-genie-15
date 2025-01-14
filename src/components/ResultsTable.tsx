@@ -61,10 +61,6 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
     }
   };
 
-  const getNonZeroBalances = (balances: Balance[]) => {
-    return balances.filter(balance => parseFloat(balance.amount) > 0);
-  };
-
   const formatBalance = (balance: string, decimals: number = 18) => {
     const num = parseFloat(balance);
     if (isNaN(num)) return '0';
@@ -81,7 +77,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
               <TableHead>Тип</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>Прогресс</TableHead>
-              <TableHead>Найденные балансы</TableHead>
+              <TableHead>Балансы</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -115,10 +111,12 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">
-                    {getNonZeroBalances(result.balances).map((balance, idx) => (
+                    {result.balances.map((balance, idx) => (
                       <div 
                         key={idx} 
-                        className="text-xs md:text-sm win98-inset p-2 cursor-pointer hover:bg-gray-100"
+                        className={`text-xs md:text-sm win98-inset p-2 cursor-pointer hover:bg-gray-100 ${
+                          parseFloat(balance.amount) > 0 ? 'text-green-600' : 'text-gray-500'
+                        }`}
                         onClick={() => setSelectedResult(result)}
                       >
                         <span className="font-medium">{balance.networkName}:</span>{' '}
@@ -189,13 +187,17 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">Балансы и токены</div>
                 <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto">
-                  {getNonZeroBalances(selectedResult.balances).map((balance, idx) => (
+                  {selectedResult.balances.map((balance, idx) => (
                     <Accordion type="single" collapsible key={idx}>
                       <AccordionItem value={`network-${idx}`} className="win98-container p-3">
                         <AccordionTrigger className="hover:no-underline">
                           <div className="flex flex-col items-start">
                             <div className="font-medium">{balance.networkName}</div>
-                            <div className="font-mono text-sm">{balance.amount}</div>
+                            <div className={`font-mono text-sm ${
+                              parseFloat(balance.amount) > 0 ? 'text-green-600' : 'text-gray-500'
+                            }`}>
+                              {balance.amount}
+                            </div>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent>

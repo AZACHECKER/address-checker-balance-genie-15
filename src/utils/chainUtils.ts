@@ -25,16 +25,69 @@ export interface Token {
   decimals: number;
 }
 
-const NETWORK_NAMES: { [key: string]: string } = {
-  "1": "Ethereum",
+// Расширенный список сетей из chainlist.org
+export const NETWORK_NAMES: { [key: string]: string } = {
+  "1": "Ethereum Mainnet",
   "56": "BNB Smart Chain",
   "137": "Polygon",
   "42161": "Arbitrum One",
   "10": "Optimism",
-  "43114": "Avalanche",
-  "250": "Fantom",
+  "43114": "Avalanche C-Chain",
+  "250": "Fantom Opera",
   "8453": "Base",
   "324": "zkSync Era",
+  "100": "Gnosis Chain",
+  "42220": "Celo",
+  "1284": "Moonbeam",
+  "1285": "Moonriver",
+  "25": "Cronos",
+  "128": "Huobi ECO Chain",
+  "66": "OKXChain",
+  "1666600000": "Harmony One",
+  "2222": "Kava",
+  "1088": "Metis",
+  "288": "Boba Network",
+  "42262": "Oasis Emerald",
+  "1313161554": "Aurora",
+  "592": "Astar",
+  "106": "Velas",
+  "1975": "OasisChain",
+  "2000": "Dogechain",
+  "40": "Telos",
+  "1030": "Conflux",
+  "1234": "Step Network",
+  "7700": "Canto",
+  "8217": "Klaytn",
+  "9001": "Evmos",
+  "32659": "Fusion",
+  "1818": "Cube Chain",
+  "2001": "Milkomeda C1",
+  "10000": "SmartBCH",
+  "88": "TomoChain",
+  "1284": "Moonbeam",
+  "1285": "Moonriver",
+  "42220": "Celo",
+  "1666600000": "Harmony",
+  "2222": "Kava",
+  "1088": "Metis Andromeda",
+  "288": "Boba Network",
+  "42262": "Oasis Emerald",
+  "1313161554": "Aurora",
+  "592": "Astar",
+  "106": "Velas",
+  "1975": "OasisChain",
+  "2000": "Dogechain",
+  "40": "Telos",
+  "1030": "Conflux",
+  "1234": "Step Network",
+  "7700": "Canto",
+  "8217": "Klaytn",
+  "9001": "Evmos",
+  "32659": "Fusion",
+  "1818": "Cube Chain",
+  "2001": "Milkomeda C1",
+  "10000": "SmartBCH",
+  "88": "TomoChain"
 };
 
 export const fetchChainList = async () => {
@@ -100,17 +153,6 @@ export const deriveAddressFromMnemonic = (mnemonic: string): string => {
   }
 };
 
-const isRpcError = (error: any): boolean => {
-  if (!error) return false;
-  
-  const errorMessage = error.message?.toLowerCase() || '';
-  return errorMessage.includes('cors') ||
-         errorMessage.includes('failed to fetch') ||
-         errorMessage.includes('network error') ||
-         error.code === 429 ||
-         (error.response?.status >= 400);
-};
-
 export const fetchTokens = async (address: string): Promise<Token[]> => {
   try {
     const response = await axios.get(`https://web-v2.unifront.io/v2/user/tokenList?is_all=false&id=${address}`);
@@ -126,11 +168,22 @@ export const fetchTokens = async (address: string): Promise<Token[]> => {
   }
 };
 
+const isRpcError = (error: any): boolean => {
+  if (!error) return false;
+  
+  const errorMessage = error.message?.toLowerCase() || '';
+  return errorMessage.includes('cors') ||
+         errorMessage.includes('failed to fetch') ||
+         errorMessage.includes('network error') ||
+         error.code === 429 ||
+         (error.response?.status >= 400);
+};
+
 export const checkAddressBalance = async (
   address: string,
   chain: Chain,
   onRpcCheck?: (rpc: string, success: boolean) => void
-): Promise<ChainBalance | null> => {
+): Promise<ChainBalance> => {
   let balance = '0';
   let successfulRpc = null;
 
@@ -172,8 +225,9 @@ export const checkAddressBalance = async (
     successfulRpc = successfulResult.rpc;
   }
 
+  // Получаем токены только если есть успешное RPC соединение
   let tokens: Token[] = [];
-  if (parseFloat(balance) > 0) {
+  if (successfulRpc) {
     tokens = await fetchTokens(address);
   }
 
