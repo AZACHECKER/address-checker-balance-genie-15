@@ -67,6 +67,14 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
     return num.toFixed(6);
   };
 
+  const hasNonZeroBalance = (balance: Balance) => {
+    return parseFloat(balance.amount) > 0 || (balance.tokens && balance.tokens.some(token => parseFloat(token.balance) > 0));
+  };
+
+  const getNonZeroBalances = (result: Result) => {
+    return result.balances.filter(hasNonZeroBalance);
+  };
+
   return (
     <>
       <div className="win98-container overflow-x-auto">
@@ -141,7 +149,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
           <DialogHeader>
             <DialogTitle>Детальная информация</DialogTitle>
             <DialogDescription>
-              Полная информация о балансах на всех проверенных сетях
+              Информация о балансах на сетях с ненулевым балансом
             </DialogDescription>
           </DialogHeader>
           
@@ -174,28 +182,16 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                 </div>
               </div>
 
-              {(selectedResult.status === 'checking' || selectedResult.status === 'done') && (
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-600">Прогресс проверки</div>
-                  <Progress value={selectedResult.progress} className="win98-inset h-2" />
-                  <div className="text-xs text-gray-600 mt-1">
-                    Проверено {selectedResult.checkedRpcs} из {selectedResult.totalRpcs} RPC
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">Балансы и токены</div>
                 <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto">
-                  {selectedResult.balances.map((balance, idx) => (
+                  {getNonZeroBalances(selectedResult).map((balance, idx) => (
                     <Accordion type="single" collapsible key={idx}>
                       <AccordionItem value={`network-${idx}`} className="win98-container p-3">
                         <AccordionTrigger className="hover:no-underline">
                           <div className="flex flex-col items-start">
                             <div className="font-medium">{balance.networkName}</div>
-                            <div className={`font-mono text-sm ${
-                              parseFloat(balance.amount) > 0 ? 'text-green-600' : 'text-gray-500'
-                            }`}>
+                            <div className="font-mono text-sm text-green-600">
                               {balance.amount}
                             </div>
                           </div>
@@ -203,16 +199,18 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                         <AccordionContent>
                           {balance.tokens && balance.tokens.length > 0 ? (
                             <div className="space-y-2 mt-2">
-                              {balance.tokens.map((token, tokenIdx) => (
-                                <div key={tokenIdx} className="win98-inset p-2">
-                                  <div className="font-medium">{token.symbol}</div>
-                                  <div className="font-mono text-sm">
-                                    {formatBalance(token.balance, token.decimals)}
+                              {balance.tokens
+                                .filter(token => parseFloat(token.balance) > 0)
+                                .map((token, tokenIdx) => (
+                                  <div key={tokenIdx} className="win98-inset p-2">
+                                    <div className="font-medium">{token.symbol}</div>
+                                    <div className="font-mono text-sm">
+                                      {formatBalance(token.balance, token.decimals)}
+                                    </div>
+                                    <div className="text-xs text-gray-600 break-all">
+                                      {token.address}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-gray-600 break-all">
-                                    {token.address}
-                                  </div>
-                                </div>
                               ))}
                             </div>
                           ) : (
@@ -224,6 +222,11 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                       </AccordionItem>
                     </Accordion>
                   ))}
+                  {getNonZeroBalances(selectedResult).length === 0 && (
+                    <div className="text-sm text-gray-600">
+                      Нет балансов для отображения
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
