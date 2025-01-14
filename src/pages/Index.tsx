@@ -43,6 +43,90 @@ const Index = () => {
     toast.success('Файл успешно загружен');
   }, []);
 
+  const processInput = async () => {
+    if (!input.trim()) {
+      toast.error('Пожалуйста, введите данные');
+      return;
+    }
+
+    if (chains.length === 0) {
+      toast.error('Список сетей не загружен');
+      return;
+    }
+
+    setIsProcessing(true);
+    
+    try {
+      const lines = input.split('\n').filter(line => line.trim());
+      const initialResults: Result[] = lines.map(line => {
+        const type = detectInputType(line.trim());
+        const address = getAddressFromInput(line.trim(), type);
+        return {
+          address,
+          type,
+          balances: [],
+          status: 'pending',
+          totalRpcs,
+          checkedRpcs: 0,
+          progress: 0
+        };
+      });
+      
+      setResults(initialResults);
+
+      // Process all addresses in parallel
+      await Promise.all(initialResults.map(async (result, index) => {
+        setResults(prev => prev.map((r, idx) => 
+          idx === index ? { ...r, status: 'checking' } : r
+        ));
+
+        let checkedRpcs = 0;
+        
+        for (const chain of chains) {
+          const balance = await checkAddressBalance(
+            result.address, 
+            chain,
+            (rpc, success) => {
+              checkedRpcs++;
+              const progress = (checkedRpcs / totalRpcs) * 100;
+              setResults(prev => prev.map((r, idx) => 
+                idx === index ? { 
+                  ...r, 
+                  checkedRpcs,
+                  progress
+                } : r
+              ));
+            }
+          );
+          
+          if (balance) {
+            setResults(prev => prev.map((r, idx) => 
+              idx === index ? {
+                ...r,
+                balances: [...r.balances, balance]
+              } : r
+            ));
+          }
+        }
+        
+        setResults(prev => prev.map((r, idx) => 
+          idx === index ? {
+            ...r,
+            status: 'done',
+            progress: 100
+          } : r
+        ));
+      }));
+
+      toast.success('Проверка завершена');
+    } catch (error) {
+      console.error('Ошибка обработки:', error);
+      toast.error('Произошла ошибка при обработке');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const detectInputType = useCallback((input: string): 'address' | 'private_key' | 'mnemonic' => {
     input = input.trim();
     if (input.match(/^(0x)?[0-9a-fA-F]{40}$/)) {
@@ -65,91 +149,6 @@ const Index = () => {
         return input;
     }
   }, []);
-
-  const processInput = async () => {
-    if (!input.trim()) {
-      toast.error('Пожалуйста, введите данные');
-      return;
-    }
-
-    if (chains.length === 0) {
-      toast.error('Список сетей не загружен');
-      return;
-    }
-
-    setIsProcessing(true);
-    
-    try {
-      const lines = input.split('\n').filter(line => line.trim());
-      
-      const initialResults: Result[] = lines.map(line => {
-        const type = detectInputType(line.trim());
-        const address = getAddressFromInput(line.trim(), type);
-        return {
-          address,
-          type,
-          balances: [],
-          status: 'pending',
-          totalRpcs,
-          checkedRpcs: 0,
-          progress: 0
-        };
-      });
-      
-      setResults(initialResults);
-
-      for (let i = 0; i < initialResults.length; i++) {
-        const result = initialResults[i];
-        let checkedRpcs = 0;
-        
-        setResults(prev => prev.map((r, idx) => 
-          idx === i ? { ...r, status: 'checking' } : r
-        ));
-
-        for (const chain of chains) {
-          const balance = await checkAddressBalance(
-            result.address, 
-            chain,
-            (rpc, success) => {
-              checkedRpcs++;
-              const progress = (checkedRpcs / totalRpcs) * 100;
-              setResults(prev => prev.map((r, idx) => 
-                idx === i ? { 
-                  ...r, 
-                  checkedRpcs,
-                  progress
-                } : r
-              ));
-            }
-          );
-          
-          if (balance) {
-            setResults(prev => prev.map((r, idx) => 
-              idx === i ? {
-                ...r,
-                balances: [...r.balances, balance]
-              } : r
-            ));
-          }
-        }
-        
-        setResults(prev => prev.map((r, idx) => 
-          idx === i ? {
-            ...r,
-            status: 'done',
-            progress: 100
-          } : r
-        ));
-      }
-
-      toast.success('Проверка завершена');
-    } catch (error) {
-      console.error('Ошибка обработки:', error);
-      toast.error('Произошла ошибка при обработке');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   return (
     <div className="win98-container min-h-screen p-4 md:p-8">
