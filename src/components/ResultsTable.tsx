@@ -144,40 +144,44 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
       <Dialog open={!!selectedResult} onOpenChange={() => setSelectedResult(null)}>
         <DialogContent className="win98-container max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Детальная информация</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold">Детальная информация</DialogTitle>
+            <DialogDescription className="text-gray-600">
               Информация о балансах на всех проверенных сетях
             </DialogDescription>
           </DialogHeader>
           
           {selectedResult && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Адрес</div>
-                <div className="font-mono text-sm break-all win98-inset p-3">
+            <div className="space-y-6">
+              {/* Address Section */}
+              <div className="win98-container p-4 space-y-2">
+                <div className="text-sm font-semibold text-gray-700">Адрес</div>
+                <div className="font-mono text-sm break-all win98-inset p-3 bg-gray-50">
                   {selectedResult.address}
                 </div>
               </div>
 
+              {/* Private Key Section */}
               {selectedResult.privateKey && (
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-600">Приватный ключ</div>
-                  <div className="font-mono text-sm break-all win98-inset p-3 bg-yellow-50">
+                <div className="win98-container p-4 space-y-2">
+                  <div className="text-sm font-semibold text-gray-700">Приватный ключ</div>
+                  <div className="font-mono text-sm break-all win98-inset p-3 bg-yellow-50 border border-yellow-200">
                     {selectedResult.privateKey}
                   </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Тип</div>
-                <div className="win98-inset p-3">
+              {/* Type Section */}
+              <div className="win98-container p-4 space-y-2">
+                <div className="text-sm font-semibold text-gray-700">Тип</div>
+                <div className="win98-inset p-3 bg-gray-50">
                   {getTypeLabel(selectedResult.type)}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Статус проверки</div>
-                <div className="win98-inset p-3">
+              {/* Status Section */}
+              <div className="win98-container p-4 space-y-2">
+                <div className="text-sm font-semibold text-gray-700">Статус проверки</div>
+                <div className="win98-inset p-3 bg-gray-50">
                   {selectedResult.status === 'pending' && 'Ожидание'}
                   {selectedResult.status === 'checking' && (
                     <span className="text-blue-600 animate-pulse">Проверка...</span>
@@ -188,9 +192,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Балансы и токены</div>
-                <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto">
+              {/* Balances Section */}
+              <div className="win98-container p-4 space-y-2">
+                <div className="text-sm font-semibold text-gray-700">Балансы и токены</div>
+                <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto bg-gray-50">
                   {selectedResult.balances.map((balance, idx) => (
                     <Accordion type="single" collapsible key={idx}>
                       <AccordionItem value={`network-${idx}`} className="win98-container p-3">
@@ -208,7 +213,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                           {balance.tokens && balance.tokens.length > 0 ? (
                             <div className="space-y-2 mt-2">
                               {balance.tokens.map((token, tokenIdx) => (
-                                <div key={tokenIdx} className="win98-inset p-2">
+                                <div key={tokenIdx} className="win98-inset p-2 bg-white">
                                   <div className="font-medium">{token.symbol}</div>
                                   <div className={`font-mono text-sm ${
                                     parseFloat(token.balance) > 0 ? 'text-green-600' : 'text-gray-500'
