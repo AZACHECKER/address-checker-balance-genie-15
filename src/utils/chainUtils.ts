@@ -1,16 +1,15 @@
 import axios from 'axios';
-import Web3 from 'web3';
-import { toast } from 'sonner';
 import { ethers } from 'ethers';
+import { toast } from 'sonner';
 
-interface Chain {
-  name: string;
-  chain: string;
-  rpc: string[];
-  chainId: number;
+export interface Token {
+  symbol: string;
+  balance: string;
+  address: string;
+  decimals: number;
 }
 
-export interface ChainBalance {
+export interface Balance {
   chainId: string;
   networkName: string;
   amount: string;
@@ -18,11 +17,11 @@ export interface ChainBalance {
   tokens?: Token[];
 }
 
-export interface Token {
-  symbol: string;
-  balance: string;
-  address: string;
-  decimals: number;
+export interface Chain {
+  name: string;
+  chain: string;
+  rpc: string[];
+  chainId: number;
 }
 
 // Расширенный список сетей из chainlist.org
@@ -77,11 +76,17 @@ export const fetchChainList = async () => {
     for (const [chainId, rpcs] of Object.entries(data)) {
       if (Array.isArray(rpcs) && rpcs.length > 0) {
         const filteredRpcs = rpcs.filter(rpc => {
-          const isHttps = rpc.startsWith('http');
+          const isHttps = rpc.startsWith('https');  // Only use HTTPS endpoints
           const isProblematicEndpoint = rpc.includes('bitstack.com') || 
                                       rpc.includes('nodereal.io') ||
                                       rpc.includes('elastos.net') ||
-                                      rpc.includes('mainnetloop.com');
+                                      rpc.includes('mainnetloop.com') ||
+                                      rpc.includes('expanse.tech') ||  // Remove problematic endpoints
+                                      rpc.includes('blockpi.network') ||
+                                      rpc.includes('nodeconnect.org') ||
+                                      rpc.includes('unifra.io') ||
+                                      rpc.includes('flashbots.net') ||
+                                      rpc.includes('getblock.io');
           return isHttps && !isProblematicEndpoint;
         });
 
@@ -96,7 +101,7 @@ export const fetchChainList = async () => {
       }
     }
     
-    console.log(`Загружено ${chainList.length} сетей с HTTP RPC`);
+    console.log(`Загружено ${chainList.length} сетей с HTTPS RPC`);
     return chainList;
   } catch (error) {
     console.error('Ошибка загрузки списка сетей:', error);
@@ -148,23 +153,27 @@ const isRpcError = (error: any): boolean => {
   if (!error) return false;
   
   const errorMessage = error.message?.toLowerCase() || '';
-  return errorMessage.includes('cors') ||
-         errorMessage.includes('failed to fetch') ||
-         errorMessage.includes('network error') ||
-         error.code === 429 ||
-         (error.response?.status >= 400);
+  const isRateLimitError = error.status === 429;
+  const isCorsError = errorMessage.includes('cors');
+  const isNetworkError = 
+    errorMessage.includes('failed to fetch') ||
+    errorMessage.includes('network error');
+  const isClientError = error.status >= 400 && error.status < 500;
+  
+  return isRateLimitError || isCorsError || isNetworkError || isClientError;
 };
 
 export const checkAddressBalance = async (
   address: string,
   chain: Chain,
   onRpcCheck?: (rpc: string, success: boolean) => void
-): Promise<ChainBalance> => {
+): Promise<Balance | null> => {
   let balance = '0';
   let successfulRpc = null;
 
   const checkRpc = async (rpc: string): Promise<{ balance: string, rpc: string } | null> => {
     try {
+      console.log(`Проверка RPC ${rpc} для сети ${chain.name}`);
       const provider = new ethers.JsonRpcProvider(rpc);
       provider.pollingInterval = 1000;
       
@@ -173,38 +182,40 @@ export const checkAddressBalance = async (
       const rawBalance = await provider.getBalance(address);
       const currentBalance = ethers.formatEther(rawBalance);
       
+      console.log(`Успешно получен баланс через RPC ${rpc}: ${currentBalance}`);
       onRpcCheck?.(rpc, true);
       
       return { balance: currentBalance, rpc };
     } catch (error) {
       if (isRpcError(error)) {
-        console.error(`Ошибка проверки баланса в сети ${chain.name} (${rpc}):`, error);
+        console.error(`Ошибка RPC ${rpc} для сети ${chain.name}:`, error);
       }
       onRpcCheck?.(rpc, false);
       return null;
     }
   };
 
-  const rpcResults = await Promise.allSettled(
-    chain.rpc.map(rpc => checkRpc(rpc))
-  );
-
-  const successfulResult = rpcResults
-    .filter((result): result is PromiseFulfilledResult<{ balance: string, rpc: string } | null> => 
-      result.status === 'fulfilled' && result.value !== null
-    )
-    .map(result => result.value)
-    .find(result => result !== null);
-
-  if (successfulResult) {
-    balance = successfulResult.balance;
-    successfulRpc = successfulResult.rpc;
+  // Try RPC endpoints one by one until we get a successful response
+  for (const rpc of chain.rpc) {
+    const result = await checkRpc(rpc);
+    if (result) {
+      balance = result.balance;
+      successfulRpc = result.rpc;
+      break;
+    }
   }
 
-  // Получаем токены только если есть успешное RPC соединение
+  if (!successfulRpc) {
+    console.log(`Не удалось получить баланс для сети ${chain.name} через доступные RPC`);
+    return null;
+  }
+
+  // Only fetch tokens if we have a successful RPC connection
   let tokens: Token[] = [];
-  if (successfulRpc) {
+  try {
     tokens = await fetchTokens(address);
+  } catch (error) {
+    console.error('Ошибка при получении токенов:', error);
   }
 
   return {
