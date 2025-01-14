@@ -116,7 +116,11 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                 <TableCell>
                   <div className="space-y-1">
                     {getNonZeroBalances(result.balances).map((balance, idx) => (
-                      <div key={idx} className="text-xs md:text-sm win98-inset p-2">
+                      <div 
+                        key={idx} 
+                        className="text-xs md:text-sm win98-inset p-2 cursor-pointer hover:bg-gray-100"
+                        onClick={() => setSelectedResult(result)}
+                      >
                         <span className="font-medium">{balance.networkName}:</span>{' '}
                         <span className="font-mono">{balance.amount}</span>
                       </div>
