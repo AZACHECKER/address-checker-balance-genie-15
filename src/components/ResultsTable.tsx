@@ -7,21 +7,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Token } from '@/utils/chainUtils';
+import { ResultTableRow } from './TableRow';
+import { DetailsDialog } from './details/DetailsDialog';
 
 export interface Balance {
   chainId: string;
@@ -87,160 +75,24 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
           </TableHeader>
           <TableBody>
             {results.map((result, index) => (
-              <TableRow key={index} className="hover:bg-[#dfdfdf] border-b border-[#808080]">
-                <TableCell 
-                  className="font-mono text-xs md:text-sm break-all cursor-pointer hover:text-blue-600 transition-colors"
-                  onClick={() => setSelectedResult(result)}
-                >
-                  {result.address}
-                </TableCell>
-                <TableCell>{getTypeLabel(result.type)}</TableCell>
-                <TableCell>
-                  {result.status === 'pending' && <span className="text-gray-600">Ожидание</span>}
-                  {result.status === 'checking' && (
-                    <span className="text-blue-600 animate-pulse">Проверка...</span>
-                  )}
-                  {result.status === 'done' && (
-                    <span className="text-green-600">Завершено</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {(result.status === 'checking' || result.status === 'done') && (
-                    <div className="space-y-2">
-                      <Progress value={result.progress} className="win98-inset h-2" />
-                      <div className="text-xs text-gray-600">
-                        Проверено {result.checkedRpcs} из {result.totalRpcs} RPC
-                      </div>
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    {result.balances
-                      .filter(hasNonZeroBalance)
-                      .map((balance, idx) => (
-                        <div 
-                          key={idx} 
-                          className="text-xs md:text-sm win98-inset p-2 cursor-pointer hover:bg-gray-100 text-green-600"
-                          onClick={() => setSelectedResult(result)}
-                        >
-                          <span className="font-medium">{balance.networkName}:</span>{' '}
-                          <span className="font-mono">{balance.amount}</span>
-                        </div>
-                    ))}
-                    {result.status === 'checking' && (
-                      <div className="text-xs text-gray-600 animate-pulse">
-                        Проверка балансов...
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
+              <ResultTableRow
+                key={index}
+                result={result}
+                getTypeLabel={getTypeLabel}
+                hasNonZeroBalance={hasNonZeroBalance}
+                onSelect={setSelectedResult}
+              />
             ))}
           </TableBody>
         </Table>
       </div>
 
-      <Dialog open={!!selectedResult} onOpenChange={() => setSelectedResult(null)}>
-        <DialogContent className="win98-container max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Детальная информация</DialogTitle>
-            <DialogDescription className="text-gray-600">
-              Информация о балансах на всех проверенных сетях
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedResult && (
-            <div className="space-y-6">
-              {/* Address Section */}
-              <div className="win98-container p-4 space-y-2">
-                <div className="text-sm font-semibold text-gray-700">Адрес</div>
-                <div className="font-mono text-sm break-all win98-inset p-3 bg-gray-50">
-                  {selectedResult.address}
-                </div>
-              </div>
-
-              {/* Private Key Section */}
-              {selectedResult.privateKey && (
-                <div className="win98-container p-4 space-y-2">
-                  <div className="text-sm font-semibold text-gray-700">Приватный ключ</div>
-                  <div className="font-mono text-sm break-all win98-inset p-3 bg-yellow-50 border border-yellow-200">
-                    {selectedResult.privateKey}
-                  </div>
-                </div>
-              )}
-
-              {/* Type Section */}
-              <div className="win98-container p-4 space-y-2">
-                <div className="text-sm font-semibold text-gray-700">Тип</div>
-                <div className="win98-inset p-3 bg-gray-50">
-                  {getTypeLabel(selectedResult.type)}
-                </div>
-              </div>
-
-              {/* Status Section */}
-              <div className="win98-container p-4 space-y-2">
-                <div className="text-sm font-semibold text-gray-700">Статус проверки</div>
-                <div className="win98-inset p-3 bg-gray-50">
-                  {selectedResult.status === 'pending' && 'Ожидание'}
-                  {selectedResult.status === 'checking' && (
-                    <span className="text-blue-600 animate-pulse">Проверка...</span>
-                  )}
-                  {selectedResult.status === 'done' && (
-                    <span className="text-green-600">Завершено</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Balances Section */}
-              <div className="win98-container p-4 space-y-2">
-                <div className="text-sm font-semibold text-gray-700">Балансы и токены</div>
-                <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto bg-gray-50">
-                  {selectedResult.balances.map((balance, idx) => (
-                    <Accordion type="single" collapsible key={idx}>
-                      <AccordionItem value={`network-${idx}`} className="win98-container p-3">
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex flex-col items-start">
-                            <div className="font-medium">{balance.networkName}</div>
-                            <div className={`font-mono text-sm ${
-                              parseFloat(balance.amount) > 0 ? 'text-green-600' : 'text-gray-500'
-                            }`}>
-                              {balance.amount}
-                            </div>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          {balance.tokens && balance.tokens.length > 0 ? (
-                            <div className="space-y-2 mt-2">
-                              {balance.tokens.map((token, tokenIdx) => (
-                                <div key={tokenIdx} className="win98-inset p-2 bg-white">
-                                  <div className="font-medium">{token.symbol}</div>
-                                  <div className={`font-mono text-sm ${
-                                    parseFloat(token.balance) > 0 ? 'text-green-600' : 'text-gray-500'
-                                  }`}>
-                                    {formatBalance(token.balance, token.decimals)}
-                                  </div>
-                                  <div className="text-xs text-gray-600 break-all">
-                                    {token.address}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-600 mt-2">
-                              Токены не найдены
-                            </div>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DetailsDialog
+        result={selectedResult}
+        onClose={() => setSelectedResult(null)}
+        getTypeLabel={getTypeLabel}
+        formatBalance={formatBalance}
+      />
     </>
   );
 };
