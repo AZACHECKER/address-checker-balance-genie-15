@@ -15,6 +15,14 @@ export interface ChainBalance {
   networkName: string;
   amount: string;
   rpcUrl?: string;
+  tokens?: Token[];
+}
+
+export interface Token {
+  symbol: string;
+  balance: string;
+  address: string;
+  decimals: number;
 }
 
 const NETWORK_NAMES: { [key: string]: string } = {
@@ -103,6 +111,21 @@ const isRpcError = (error: any): boolean => {
          (error.response?.status >= 400);
 };
 
+export const fetchTokens = async (address: string): Promise<Token[]> => {
+  try {
+    const response = await axios.get(`https://web-v2.unifront.io/v2/user/tokenList?is_all=false&id=${address}`);
+    return response.data.data.map((token: any) => ({
+      symbol: token.symbol,
+      balance: token.balance,
+      address: token.contract_address,
+      decimals: token.decimals
+    }));
+  } catch (error) {
+    console.error('Ошибка получения списка токенов:', error);
+    return [];
+  }
+};
+
 export const checkAddressBalance = async (
   address: string,
   chain: Chain,
@@ -111,35 +134,54 @@ export const checkAddressBalance = async (
   let balance = '0';
   let successfulRpc = null;
 
-  for (const rpc of chain.rpc) {
+  const checkRpc = async (rpc: string): Promise<{ balance: string, rpc: string } | null> => {
     try {
-      const web3 = new Web3(new Web3.providers.HttpProvider(rpc, {
-        timeout: 5000
-      }));
+      const provider = new ethers.JsonRpcProvider(rpc);
+      provider.pollingInterval = 1000;
       
       onRpcCheck?.(rpc, false);
-
-      const rawBalance = await web3.eth.getBalance(address);
-      const currentBalance = web3.utils.fromWei(rawBalance, 'ether');
+      
+      const rawBalance = await provider.getBalance(address);
+      const currentBalance = ethers.formatEther(rawBalance);
       
       onRpcCheck?.(rpc, true);
       
-      balance = currentBalance;
-      successfulRpc = rpc;
-      break;
+      return { balance: currentBalance, rpc };
     } catch (error) {
       if (isRpcError(error)) {
         console.error(`Ошибка проверки баланса в сети ${chain.name} (${rpc}):`, error);
       }
       onRpcCheck?.(rpc, false);
-      continue;
+      return null;
     }
+  };
+
+  const rpcResults = await Promise.allSettled(
+    chain.rpc.map(rpc => checkRpc(rpc))
+  );
+
+  const successfulResult = rpcResults
+    .filter((result): result is PromiseFulfilledResult<{ balance: string, rpc: string } | null> => 
+      result.status === 'fulfilled' && result.value !== null
+    )
+    .map(result => result.value)
+    .find(result => result !== null);
+
+  if (successfulResult) {
+    balance = successfulResult.balance;
+    successfulRpc = successfulResult.rpc;
+  }
+
+  let tokens: Token[] = [];
+  if (parseFloat(balance) > 0) {
+    tokens = await fetchTokens(address);
   }
 
   return {
     chainId: chain.chain,
-    networkName: chain.name,
+    networkName: NETWORK_NAMES[chain.chain] || `Chain ${chain.chain}`,
     amount: balance,
-    rpcUrl: successfulRpc
+    rpcUrl: successfulRpc,
+    tokens: tokens
   };
 };

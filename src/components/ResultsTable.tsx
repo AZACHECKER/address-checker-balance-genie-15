@@ -15,12 +15,20 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Token } from '@/utils/chainUtils';
 
 export interface Balance {
   chainId: string;
   networkName: string;
   amount: string;
   rpcUrl?: string;
+  tokens?: Token[];
 }
 
 export interface Result {
@@ -55,6 +63,12 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
 
   const getNonZeroBalances = (balances: Balance[]) => {
     return balances.filter(balance => parseFloat(balance.amount) > 0);
+  };
+
+  const formatBalance = (balance: string, decimals: number = 18) => {
+    const num = parseFloat(balance);
+    if (isNaN(num)) return '0';
+    return num.toFixed(6);
   };
 
   return (
@@ -169,18 +183,40 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
               )}
 
               <div className="space-y-2">
-                <div className="text-sm text-gray-600">Все балансы</div>
+                <div className="text-sm text-gray-600">Балансы и токены</div>
                 <div className="space-y-3 win98-inset p-4 max-h-60 overflow-y-auto">
-                  {selectedResult.balances.map((balance, idx) => (
-                    <div key={idx} className="space-y-1 win98-container p-3">
-                      <div className="font-medium">{balance.networkName}</div>
-                      <div className="font-mono text-sm">{balance.amount || '0'}</div>
-                      {balance.rpcUrl && (
-                        <div className="text-xs text-gray-600 break-all">
-                          RPC: {balance.rpcUrl}
-                        </div>
-                      )}
-                    </div>
+                  {getNonZeroBalances(selectedResult.balances).map((balance, idx) => (
+                    <Accordion type="single" collapsible key={idx}>
+                      <AccordionItem value={`network-${idx}`} className="win98-container p-3">
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex flex-col items-start">
+                            <div className="font-medium">{balance.networkName}</div>
+                            <div className="font-mono text-sm">{balance.amount}</div>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          {balance.tokens && balance.tokens.length > 0 ? (
+                            <div className="space-y-2 mt-2">
+                              {balance.tokens.map((token, tokenIdx) => (
+                                <div key={tokenIdx} className="win98-inset p-2">
+                                  <div className="font-medium">{token.symbol}</div>
+                                  <div className="font-mono text-sm">
+                                    {formatBalance(token.balance, token.decimals)}
+                                  </div>
+                                  <div className="text-xs text-gray-600 break-all">
+                                    {token.address}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-600 mt-2">
+                              Токены не найдены
+                            </div>
+                          )}
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   ))}
                 </div>
               </div>
