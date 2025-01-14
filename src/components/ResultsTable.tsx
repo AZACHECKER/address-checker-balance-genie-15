@@ -34,6 +34,7 @@ export interface Balance {
 export interface Result {
   address: string;
   type: 'address' | 'private_key' | 'mnemonic';
+  privateKey?: string;
   balances: Balance[];
   status: 'pending' | 'checking' | 'done';
   progress?: number;
@@ -157,6 +158,15 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
                   {selectedResult.address}
                 </div>
               </div>
+
+              {selectedResult.privateKey && (
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-600">Приватный ключ</div>
+                  <div className="font-mono text-sm break-all win98-inset p-3 bg-yellow-50">
+                    {selectedResult.privateKey}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">Тип</div>
